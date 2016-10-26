@@ -112,7 +112,7 @@ public class BooksAdapterGR extends RecyclerView.Adapter<BooksAdapterGR.ViewHold
         Picasso.with(this.context).load(tempValues.getBookDetails().getImage_url()).into(holder.imageBook);
         holder.ratingBook.setRating(tempValues.getRating());
         DecimalFormat formatter = new DecimalFormat("#,###,###");
-        String rating_count = formatter.format(tempValues.getRatingCount());
+        String rating_count = formatter.format(Long.parseLong(tempValues.getRatingCount().toString()));
         holder.ratingCount.setText(rating_count + " votes");        title = tempValues.getBookDetails().getTitle();
         email= Helper.getUserEmail();
         author=tempValues.getBookDetails().getAuthor().getAuthor_name();
@@ -170,15 +170,21 @@ public class BooksAdapterGR extends RecyclerView.Adapter<BooksAdapterGR.ViewHold
                             @Override
                             public void onResponse(Call<com.sdsmdg.bookshareapp.BSA.api.models.LocalBooks.Book> call, Response<com.sdsmdg.bookshareapp.BSA.api.models.LocalBooks.Book> response) {
                                 Log.i("Email iD ", Helper.getUserEmail());
-                                if (response.body() != null) {
-                                    Log.i("AddBook", "Success");
-                                    Toast.makeText(context, response.body().getDetail(), Toast.LENGTH_SHORT).show();
-                                    Log.i("response", response.body().getDetail());
-                                    holder.add.setEnabled(false);
+                                try {
 
-                                } else {
-                                    Log.i("AddBook", "Response Null");
-                                    Toast.makeText(context, response.body().getDetail() , Toast.LENGTH_SHORT).show();
+
+                                    if (response.body() != null) {
+                                        Log.i("AddBook", "Success");
+                                        Toast.makeText(context, response.body().getDetail(), Toast.LENGTH_SHORT).show();
+                                        Log.i("response", response.body().getDetail());
+                                        holder.add.setEnabled(false);
+
+                                    } else {
+                                        Log.i("AddBook", "Response Null");
+                                        Toast.makeText(context, response.body().getDetail(), Toast.LENGTH_SHORT).show();
+                                    }
+                                }catch (NullPointerException n){
+                                    Toast.makeText(context,"Sorry, this book can't be added",Toast.LENGTH_SHORT).show();
                                 }
                             }
                             @Override
