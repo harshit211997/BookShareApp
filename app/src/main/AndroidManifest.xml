@@ -10,7 +10,7 @@
     <application
         android:allowBackup="true"
         android:hardwareAccelerated="true"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@mipmap/logo1"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
@@ -18,11 +18,12 @@
             android:name=".ui.LoginActivity"
             android:label="Login"
             android:screenOrientation="portrait"
-            android:theme="@style/AppTheme.NoActionBar" />
+            android:theme="@style/AppTheme.NoActionBar"></activity>
         <activity
             android:name=".ui.SearchResultsActivity"
             android:label="Search"
-            android:screenOrientation="portrait">
+            android:screenOrientation="portrait"
+            android:theme="@style/AppTheme.UserSearch">
             <intent-filter>
                 <action android:name="android.intent.action.SEARCHRESULTS" />
 
@@ -37,6 +38,8 @@
             android:windowSoftInputMode="adjustPan|adjustResize" />
         <activity
             android:name=".ui.SignupActivity"
+            android:label="Sign Up"
+            android:parentActivityName=".ui.MyProfile"
             android:screenOrientation="portrait" />
         <activity
             android:name=".ui.MyProfile"
@@ -55,7 +58,6 @@
             android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
@@ -71,17 +73,17 @@
         <activity
             android:name=".ui.GuestActivity"
             android:label="Campus Books"
-            android:screenOrientation="portrait"
-            android:parentActivityName=".ui.LoginActivity"/>
+            android:parentActivityName=".ui.LoginActivity"
+            android:screenOrientation="portrait" />
         <activity
             android:name=".ui.UserSearchActivity"
             android:label="Search User"
             android:screenOrientation="portrait"
-            android:theme="@style/AppTheme.UserSearch"
-            />
+            android:theme="@style/AppTheme.UserSearch" />
         <activity
             android:name=".ui.GRLoginActivity"
-            android:label="To-Read">
+            android:label="To-Read"
+            android:parentActivityName=".ui.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
 
@@ -95,8 +97,42 @@
         </activity>
         <activity
             android:name=".ui.ToReadActivity"
-            android:label="To-Read" />
-        <activity android:name=".ui.BarcodeActivity"></activity>
-    </application>
+            android:label="To-Read"
+            android:parentActivityName=".ui.MainActivity" />
 
+        <service android:name=".firebase_classes.MyFirebaseMessagingService">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".firebase_classes.FirebaseInstanceIDService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.INSTANCE_ID_EVENT" />
+            </intent-filter>
+        </service>
+
+
+        <activity
+            android:name=".ui.ForgotPasswordActivity"
+            android:parentActivityName=".ui.LoginActivity" />
+        <activity android:name=".ui.PasswordConfirmActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="172.25.30.213"
+                    android:pathPrefix="/reset"
+                    android:port="8000"
+                    android:scheme="http" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".ui.WelcomeActivity"
+            android:theme="@style/AppTheme.NoActionBar" />
+    </application>
 </manifest>

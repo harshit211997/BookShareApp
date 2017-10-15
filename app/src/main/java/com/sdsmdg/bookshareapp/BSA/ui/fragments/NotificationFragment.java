@@ -8,13 +8,12 @@ import android.support.v4.app.Fragment;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
-import android.widget.Toast;
 
+import com.sdsmdg.bookshareapp.BSA.Listeners.EndlessScrollListener;
 import com.sdsmdg.bookshareapp.BSA.R;
 import com.sdsmdg.bookshareapp.BSA.api.UsersAPI;
 import com.sdsmdg.bookshareapp.BSA.api.models.Notification.Notification_Model;
@@ -26,8 +25,6 @@ import com.sdsmdg.bookshareapp.BSA.utils.Helper;
 import java.util.ArrayList;
 import java.util.List;
 
-import okhttp3.OkHttpClient;
-import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -58,6 +55,8 @@ public class NotificationFragment extends Fragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+
     }
 
     @Override
@@ -66,65 +65,68 @@ public class NotificationFragment extends Fragment {
         // Inflate the layout for this fragment
         View v = inflater.inflate(R.layout.fragment_notification, container, false);
 
-        prefs = getContext().getSharedPreferences("Token",Context.MODE_PRIVATE);
-        noNotificationTextView = (TextView)v.findViewById(R.id.no_notification_text);
+        prefs = getContext().getSharedPreferences("Token", Context.MODE_PRIVATE);
+        noNotificationTextView = (TextView) v.findViewById(R.id.no_notification_text);
 
         nLinearLayoutManager = new LinearLayoutManager(getActivity());
-        nLinearLayoutManager.setReverseLayout(true);
-        nLinearLayoutManager.setStackFromEnd(true);
+
 
         notificationsListView = (RecyclerView) v.findViewById(R.id.notifications_list);
         notificationsListView.setLayoutManager(nLinearLayoutManager);
 
         adapter = new NotificationAdapter(getActivity(), notificationsList);
         notificationsListView.setAdapter(adapter);
-        getNotifications();
+        getNotifications("1");
 
-        refreshLayout =(SwipeRefreshLayout)v.findViewById(R.id.notif_refresh_layout);
+        final EndlessScrollListener endlessScrollListener = new EndlessScrollListener((LinearLayoutManager) nLinearLayoutManager) {
+            @Override
+            public void onLoadMore(int page, int totalItemsCount) {
+                getNotifications(String.valueOf(page + 1));
+            }
+        };
+
+        notificationsListView.addOnScrollListener(endlessScrollListener);
+
+        refreshLayout = (SwipeRefreshLayout) v.findViewById(R.id.notif_refresh_layout);
         refreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
             public void onRefresh() {
-                getNotifications();
+                endlessScrollListener.reset();
+                getNotifications("1");
             }
         });
         return v;
     }
 
-    public void getNotifications() {
+    public void getNotifications(final String page) {
         Helper.setOld_total(Helper.getNew_total());
-
-        HttpLoggingInterceptor logging = new HttpLoggingInterceptor();
-        logging.setLevel(HttpLoggingInterceptor.Level.BODY);
-
-        OkHttpClient.Builder httpclient = new OkHttpClient.Builder();
-
-        httpclient.addInterceptor(logging);
 
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl(CommonUtilities.local_books_api_url)
                 .addConverterFactory(GsonConverterFactory.create())
-                .client(httpclient.build())
                 .build();
 
         UsersAPI usersAPI = retrofit.create(UsersAPI.class);
-        Call<Notification_Model> call = usersAPI.getNotifs("Token "+prefs.getString("token",null));
-        Log.i("dgg","Token "+prefs.getString("token",null));
+        Call<Notification_Model> call = usersAPI.getNotifs(page, "Token " + prefs.getString("token", null));
         call.enqueue(new Callback<Notification_Model>() {
 
             @Override
             public void onResponse(Call<Notification_Model> call, Response<Notification_Model> response) {
-                Log.i("ss", "onResponse: " + response.body());
                 if (response.body() != null) {
 
                     List<Notifications> notifList = response.body().getNotificationsList();
-                    Log.i("here 1","yes");
-                    Log.i("dgg2","Token "+prefs.getString("token",null));
-                    if(notifList.size() == 0) {
+                    if (notifList.size() == 0) {
+                        noNotificationTextView.setText("No new notifications");
                         noNotificationTextView.setVisibility(View.VISIBLE);
                     } else {
                         noNotificationTextView.setVisibility(View.GONE);
                     }
-                    notificationsList.clear();
+
+                    if (page.equals("1")) {
+                        notificationsList.clear();
+                        adapter.notifyDataSetChanged();
+                    }
+
                     Helper.setNew_total(notifList.size());
                     notificationsList.addAll(notifList);
                     adapter.notifyDataSetChanged();
@@ -134,10 +136,9 @@ public class NotificationFragment extends Fragment {
 
             @Override
             public void onFailure(Call<Notification_Model> call, Throwable t) {
-                Toast.makeText(getActivity(), "Check your internet connection and try again!", Toast.LENGTH_SHORT).show();
-                Log.i("OverHere","yea");
-                Log.i("dgg3","Token "+prefs.getString("token",null));
-                Log.i("ssg",t.toString());
+                noNotificationTextView.setVisibility(View.VISIBLE);
+                noNotificationTextView.setText("You are offline");
+                refreshLayout.setRefreshing(false);
             }
         });
     }

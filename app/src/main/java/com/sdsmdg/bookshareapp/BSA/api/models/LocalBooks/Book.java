@@ -1,11 +1,14 @@
 package com.sdsmdg.bookshareapp.BSA.api.models.LocalBooks;
 
-import com.sdsmdg.bookshareapp.BSA.api.models.UserInfo;
 import com.google.gson.annotations.SerializedName;
+import com.sdsmdg.bookshareapp.BSA.api.models.LocalUsers.UserInfo;
 
 import java.util.List;
 
-public class Book {
+import io.realm.RealmList;
+import io.realm.RealmObject;
+
+public class Book extends RealmObject {
 
     String id;
     String detail;
@@ -21,10 +24,9 @@ public class Book {
     @SerializedName("email")
     String email;
     @SerializedName("owner")
-    List<UserInfo> userInfoList;
+    RealmList<UserInfo> userInfoList;
     @SerializedName("description")
     String description;
-
 
     public String getAuthor() {
         return author;
@@ -45,9 +47,11 @@ public class Book {
     public String getId() {
         return id;
     }
+
     public String getDetail() {
         return detail;
     }
+
     public float getRating() {
         return rating;
     }
@@ -59,6 +63,7 @@ public class Book {
     public String getTitle() {
         return title;
     }
+
     public String getDescription() {
         return description;
     }

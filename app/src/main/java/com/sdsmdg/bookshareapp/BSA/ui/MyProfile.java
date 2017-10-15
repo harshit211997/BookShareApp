@@ -2,7 +2,7 @@
 package com.sdsmdg.bookshareapp.BSA.ui;
 
 import android.app.Activity;
-import android.app.AlertDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -17,15 +17,13 @@ import android.os.Environment;
 import android.os.Handler;
 import android.provider.MediaStore;
 import android.support.design.widget.FloatingActionButton;
-
 import android.support.v4.widget.NestedScrollView;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.LinearLayoutCompat;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.Menu;
-
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
@@ -36,8 +34,9 @@ import com.sdsmdg.bookshareapp.BSA.R;
 import com.sdsmdg.bookshareapp.BSA.api.NetworkingFactory;
 import com.sdsmdg.bookshareapp.BSA.api.UsersAPI;
 import com.sdsmdg.bookshareapp.BSA.api.models.LocalBooks.Book;
+import com.sdsmdg.bookshareapp.BSA.api.models.LocalUsers.UserDetailWithCancel;
+import com.sdsmdg.bookshareapp.BSA.api.models.LocalUsers.UserInfo;
 import com.sdsmdg.bookshareapp.BSA.api.models.Signup;
-import com.sdsmdg.bookshareapp.BSA.api.models.UserInfo;
 import com.sdsmdg.bookshareapp.BSA.ui.adapter.Local.BookAdapter;
 import com.sdsmdg.bookshareapp.BSA.utils.CommonUtilities;
 import com.sdsmdg.bookshareapp.BSA.utils.FileUtils;
@@ -81,8 +80,7 @@ public class MyProfile extends AppCompatActivity {
     ImageView backgroundImageView;
     NestedScrollView scrollView;
     SPDataLoader loader = new SPDataLoader();
-
-
+    SharedPreferences prefs;
     List<Book> booksList;
     BookAdapter adapter;
     RecyclerView mRecyclerView;
@@ -91,6 +89,7 @@ public class MyProfile extends AppCompatActivity {
     FloatingActionButton button;
     TextView noItemsTextView;
 
+    private int noOfBooks = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -101,7 +100,7 @@ public class MyProfile extends AppCompatActivity {
         customProgressDialog = new CustomProgressDialog(MyProfile.this);
         customProgressDialog.setCancelable(false);
         customProgressDialog.show();
-        customProgressDialog.getWindow().setLayout(464, LinearLayoutCompat.LayoutParams.WRAP_CONTENT);
+        prefs = getApplicationContext().getSharedPreferences("Token", Context.MODE_PRIVATE);
 
         noItemsTextView = (TextView) findViewById(R.id.no_items_text);
         mRecyclerView = (RecyclerView) findViewById(R.id.recycler_view);
@@ -115,17 +114,16 @@ public class MyProfile extends AppCompatActivity {
         getUserInfoDetails(id);
 
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        profilePicture = (CircleImageView)findViewById(R.id.profile_picture);
+        profilePicture = (CircleImageView) findViewById(R.id.profile_picture);
         userName = (TextView) findViewById(R.id.user_name);
-        userEmail = (TextView)findViewById(R.id.user_email);
-        address = (TextView)findViewById(R.id.address);
-        backgroundImageView = (ImageView)findViewById(R.id.background_image);
+        userEmail = (TextView) findViewById(R.id.user_email);
+        address = (TextView) findViewById(R.id.address);
+        backgroundImageView = (ImageView) findViewById(R.id.background_image);
         scrollView = (NestedScrollView) findViewById(R.id.scroll);
         scrollView.setSmoothScrollingEnabled(true);
         mRecyclerView.setNestedScrollingEnabled(false);
 
-
-        button= (FloatingActionButton) findViewById(R.id.button);
+        button = (FloatingActionButton) findViewById(R.id.button);
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -136,6 +134,12 @@ public class MyProfile extends AppCompatActivity {
 
     }
 
+    //This function is called from BookAdapter, when a book is sucessfully removed
+    public void onBookRemoved() {
+        noOfBooks -= 1;
+        Log.i(TAG, "onBookRemoved: 1");
+        titleBooksCount.setText("Books" + "(" + String.valueOf(noOfBooks) + ")");
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -145,22 +149,23 @@ public class MyProfile extends AppCompatActivity {
 
     public void getUserInfoDetails(String id) {
         UsersAPI api = NetworkingFactory.getLocalInstance().getUsersAPI();
-        Call<UserInfo> call = api.getUserDetails(id);
-        call.enqueue(new Callback<UserInfo>() {
+        Call<UserDetailWithCancel> call = api.getUserDetails(id, id, "Token " + prefs
+                .getString("token", null));
+        call.enqueue(new Callback<UserDetailWithCancel>() {
             @Override
-            public void onResponse(Call<UserInfo> call, Response<UserInfo> response) {
+            public void onResponse(Call<UserDetailWithCancel> call, Response<UserDetailWithCancel> response) {
                 if (response.body() != null) {
-                    Log.d("UserProfile Response:", response.toString());
                     Resp = response.toString();
-                    user = response.body();
+                    user = response.body().getUserInfo();
 
-                    List<Book> booksTempInfoList = response.body().getUserBookList();
+                    List<Book> booksTempInfoList = user.getUserBookList();
                     if (booksTempInfoList.size() == 0) {
                         noItemsTextView.setVisibility(View.VISIBLE);
                     }
                     booksList.clear();
                     booksList.addAll(booksTempInfoList);
-                    titleBooksCount.setText("Books" + "(" + booksList.size() + ")");
+                    noOfBooks = booksList.size();
+                    titleBooksCount.setText("Books" + "(" + noOfBooks + ")");
                     adapter.notifyDataSetChanged();
 
 
@@ -169,7 +174,6 @@ public class MyProfile extends AppCompatActivity {
                     Picasso.with(getApplicationContext()).load(url).into(backgroundImageView, new com.squareup.picasso.Callback() {
                         @Override
                         public void onSuccess() {
-                            Log.i(TAG, "onSuccess: called");
                             Blurry.with(getApplicationContext())
                                     .radius(40)
                                     .sampling(1)
@@ -196,25 +200,20 @@ public class MyProfile extends AppCompatActivity {
             }
 
             @Override
-            public void onFailure(Call<UserInfo> call, Throwable t) {
-                Log.d("BookDetails fail", t.toString());
+            public void onFailure(Call<UserDetailWithCancel> call, Throwable t) {
                 customProgressDialog.dismiss();
             }
         });
-
-
     }
-
 
     private void setUpRecyclerView(String id) {
         mRecyclerView.setLayoutManager(new LinearLayoutManager(MyProfile.this));
         booksList = new ArrayList<>();
-        adapter = new BookAdapter(this ,id, booksList,this);
+        adapter = new BookAdapter(this, id, booksList, this);
         mRecyclerView.setAdapter(adapter);
         adapter.setUpItemTouchHelper(mRecyclerView);
         adapter.setUpAnimationDecoratorHelper(mRecyclerView);
     }
-
 
     @Override
     protected void onResume() {
@@ -225,41 +224,37 @@ public class MyProfile extends AppCompatActivity {
         address.setText(loader.getRoomNo(this) + ", " + loader.getHostel(this));
     }
 
-
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case android.R.id.home:
                 onBackPressed();
-                return(true);
+                return (true);
         }
-
-        return(super.onOptionsItemSelected(item));
+        return (super.onOptionsItemSelected(item));
     }
-
-
 
     public void editProfileClicked(View view) {
         Intent i = new Intent(this, EditProfileActivity.class);
         startActivity(i);
     }
 
-    public void  changeImageClicked(View view){
-        final CharSequence[] items = { "Take Photo", "Choose from Library",
-                "Cancel" };
+    public void changeImageClicked(View view) {
+        final CharSequence[] items = {"Take Photo", "Choose from Library",
+                "Cancel"};
         AlertDialog.Builder builder = new AlertDialog.Builder(MyProfile.this);
-        builder.setTitle("Add Photo!");
+        builder.setTitle("Add Photo");
         builder.setItems(items, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int item) {
-                boolean result = PermissionUtils.checkPermission(MyProfile.this);
                 if (items[item].equals("Take Photo")) {
-                    userChoosenTask="Take Photo";
-                    if(result)
+                    userChoosenTask = "Take Photo";
+                    if (PermissionUtils.checkCameraPermission(MyProfile.this)) {
                         cameraIntent();
+                    }
                 } else if (items[item].equals("Choose from Library")) {
-                    userChoosenTask="Choose from Library";
-                    if(result)
+                    userChoosenTask = "Choose from Library";
+                    if (PermissionUtils.checkStoragePermission(MyProfile.this))
                         galleryIntent();
                 } else if (items[item].equals("Cancel")) {
                     dialog.dismiss();
@@ -273,8 +268,9 @@ public class MyProfile extends AppCompatActivity {
         Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         startActivityForResult(intent, REQUEST_CAMERA);
     }
+
     private void galleryIntent() {
-        Intent intent = new Intent(Intent.ACTION_PICK,MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
         intent.setType("image/*");
         startActivityForResult(Intent.createChooser(intent, "Select File"), SELECT_FILE);
     }
@@ -284,9 +280,9 @@ public class MyProfile extends AppCompatActivity {
         switch (requestCode) {
             case PermissionUtils.MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE:
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    if(userChoosenTask.equals("Take Photo"))
+                    if (userChoosenTask.equals("Take Photo"))
                         cameraIntent();
-                    else if(userChoosenTask.equals("Choose from Library"))
+                    else if (userChoosenTask.equals("Choose from Library"))
                         galleryIntent();
                 } else {
                     //code for deny
@@ -300,8 +296,7 @@ public class MyProfile extends AppCompatActivity {
         if (resCode == Activity.RESULT_OK && data != null) {
             if (reqCode == SELECT_FILE) {
                 onGalleryImageResult(data);
-            }
-            else if(reqCode == REQUEST_CAMERA){
+            } else if (reqCode == REQUEST_CAMERA) {
                 onCaptureImageResult(data);
             }
         }
@@ -310,7 +305,7 @@ public class MyProfile extends AppCompatActivity {
     private void onCaptureImageResult(Intent data) {
 
         try {
-            Bitmap thumbnail = (Bitmap) data.getExtras().get("data");
+            Bitmap thumbnail = (Bitmap) data.getExtras().get("toReadName");
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             thumbnail.compress(Bitmap.CompressFormat.JPEG, 90, bytes);
             File file = new File(Environment.getExternalStorageDirectory(),
@@ -323,22 +318,22 @@ public class MyProfile extends AppCompatActivity {
             sendToServer(file);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
-            Toast.makeText(this,e.toString(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.file_not_found, Toast.LENGTH_SHORT).show();
 
         } catch (IOException e) {
-            Toast.makeText(this, e.toString(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Unable to read the file", Toast.LENGTH_SHORT).show();
 
             e.printStackTrace();
-        } catch (NullPointerException e){
-            Toast.makeText(this, e.toString(), Toast.LENGTH_SHORT).show();
+        } catch (NullPointerException e) {
+            Toast.makeText(this, R.string.file_not_found, Toast.LENGTH_SHORT).show();
             e.printStackTrace();
-        } catch (Exception e){
-            Toast.makeText(this, e.toString(), Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "Unable to read the file", Toast.LENGTH_SHORT).show();
             e.printStackTrace();
         }
     }
 
-    private void onGalleryImageResult(Intent data){
+    private void onGalleryImageResult(Intent data) {
         Uri uri = data.getData();
         Bitmap bitmap = null;
         try {
@@ -350,14 +345,14 @@ public class MyProfile extends AppCompatActivity {
         if (file != null) {
             sendToServer(file);
         } else {
-            Toast.makeText(this, "Can't upload image", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Unable to upload image", Toast.LENGTH_SHORT).show();
         }
     }
 
-    public File getFile(Uri uri, Bitmap bitmap){
+    public File getFile(Uri uri, Bitmap bitmap) {
         File file = null;
-        String path = FileUtils.getPath(this,uri);
-        if(path==null){
+        String path = FileUtils.getPath(this, uri);
+        if (path == null) {
             try {
                 ByteArrayOutputStream bytes = new ByteArrayOutputStream();
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 90, bytes);
@@ -368,32 +363,27 @@ public class MyProfile extends AppCompatActivity {
                 fo = new FileOutputStream(file);
                 fo.write(bytes.toByteArray());
                 fo.close();
-            }
-            catch (FileNotFoundException e) {
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+                file = null;
+            } catch (IOException e) {
+                e.printStackTrace();
+                file = null;
+            } catch (java.lang.NullPointerException e) {
                 e.printStackTrace();
                 file = null;
             }
-            catch (IOException e) {
-                e.printStackTrace();
-                file = null;
-            }
-            catch (java.lang.NullPointerException e){
-                e.printStackTrace();
-                file = null;
-            }
-        }
-        else {
+        } else {
             try {
                 file = new File(path);
-            }
-            catch (Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }
         return file;
     }
 
-    public void sendToServer(File file){
+    public void sendToServer(File file) {
 
         UsersAPI api = NetworkingFactory.getLocalInstance().getUsersAPI();
         try {
@@ -435,7 +425,7 @@ public class MyProfile extends AppCompatActivity {
 
                                     @Override
                                     public void onBitmapFailed(Drawable errorDrawable) {
-                                        Toast.makeText(getApplicationContext(), "failed to load image", Toast.LENGTH_SHORT).show();
+                                        Toast.makeText(getApplicationContext(), "Failed to load image", Toast.LENGTH_SHORT).show();
                                     }
 
                                     @Override
@@ -447,18 +437,16 @@ public class MyProfile extends AppCompatActivity {
 
                 @Override
                 public void onFailure(Call<Signup> call, Throwable t) {
-                    Log.d("BookDetails fail", t.toString());
-                    Toast.makeText(getApplicationContext(), "fail", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getApplicationContext(), "Faile to load image", Toast.LENGTH_SHORT).show();
 
                 }
             });
-        }
-        catch (NullPointerException e){
-            Toast.makeText(this,e.toString(), Toast.LENGTH_SHORT).show();
+        } catch (NullPointerException e) {
+            Toast.makeText(this, "Failed to load image", Toast.LENGTH_SHORT).show();
         }
     }
 
-    public void editBooksClicked(View view){
+    public void editBooksClicked(View view) {
         Intent i = new Intent(this, MyProfile.class);
         startActivity(i);
     }
@@ -484,7 +472,6 @@ public class MyProfile extends AppCompatActivity {
     protected void onRestart() {
         super.onRestart();
     }
-
 
 
 }

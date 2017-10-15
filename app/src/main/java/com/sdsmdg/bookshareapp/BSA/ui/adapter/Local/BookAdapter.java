@@ -12,6 +12,7 @@ import android.os.Handler;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.helper.ItemTouchHelper;
+import android.util.Log;
 import android.util.SparseBooleanArray;
 import android.view.ActionMode;
 import android.view.LayoutInflater;
@@ -32,9 +33,9 @@ import com.sdsmdg.bookshareapp.BSA.api.UsersAPI;
 import com.sdsmdg.bookshareapp.BSA.api.models.LocalBooks.Book;
 import com.sdsmdg.bookshareapp.BSA.api.models.LocalBooks.RemoveBook;
 import com.sdsmdg.bookshareapp.BSA.api.models.VerifyToken.Detail;
+import com.sdsmdg.bookshareapp.BSA.ui.MyProfile;
 import com.squareup.picasso.Picasso;
 
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -43,13 +44,11 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-/**
- * Created by ajayrahul on 27/9/16.
- */
+public class BookAdapter extends RecyclerView.Adapter<BookAdapter.ViewHolder> {
 
+    private static final String TAG = BookAdapter.class.getSimpleName();
 
-public  class BookAdapter extends RecyclerView.Adapter<BookAdapter.ViewHolder>{
-    private static final int PENDING_REMOVAL_TIMEOUT = 5000;
+    private static final int PENDING_REMOVAL_TIMEOUT = 1500;
     Book tempValues = null;
     List<Book> itemsPendingRemoval;
     String userId;
@@ -59,24 +58,24 @@ public  class BookAdapter extends RecyclerView.Adapter<BookAdapter.ViewHolder>{
     SharedPreferences prefs;
     boolean undoOn = true;
     /**
-    // is undo on, you can turn it on from the toolbar menu
-    //this array stores whether the current book is selected or not
+     * // is undo on, you can turn it on from the toolbar menu
+     * //this array stores whether the current book is selected or not
      */
     SparseBooleanArray selected;
     //This activity reference is required to activate the contextual action bar
-    Activity activity ;
+    Activity activity;
 
     private Handler handler = new Handler(); // handler for running delayed runnables
     HashMap<Book, Runnable> pendingRunnables = new HashMap<>(); // map of items to pending runnables, so we can cancel a removal if need be
 
-    public BookAdapter(Context context, String userId, List<Book> bookList,Activity activity) {
+    public BookAdapter(Context context, String userId, List<Book> bookList, Activity activity) {
         itemsPendingRemoval = new ArrayList<>();
         this.bookList = bookList;
         selected = new SparseBooleanArray();
         this.userId = userId;
         this.context = context;
         this.activity = activity;
-        prefs = context.getSharedPreferences("Token",Context.MODE_PRIVATE);
+        prefs = context.getSharedPreferences("Token", Context.MODE_PRIVATE);
     }
 
     public class ViewHolder extends RecyclerView.ViewHolder {
@@ -104,7 +103,7 @@ public  class BookAdapter extends RecyclerView.Adapter<BookAdapter.ViewHolder>{
     //This function is used to delete the selected items
     public void deleteSelectedItem() {
         for (int i = 0; i < bookList.size(); i++) {
-            if(selected.get(i)) {
+            if (selected.get(i)) {
                 remove(i);
             }
         }
@@ -123,24 +122,23 @@ public  class BookAdapter extends RecyclerView.Adapter<BookAdapter.ViewHolder>{
 
     @Override
     public void onBindViewHolder(ViewHolder holder, final int position) {
-        final ViewHolder viewHolder =  holder;
+        final ViewHolder viewHolder = holder;
         final Book rbook = bookList.get(position);
 
         viewHolder.itemView.setOnLongClickListener(new View.OnLongClickListener() {
             @Override
             public boolean onLongClick(View v) {
-                Toast.makeText(context, "Selected", Toast.LENGTH_SHORT).show();
                 //This line activates the contextual action bar
                 mActionMode = activity.startActionMode(mActionModeCallback);
                 selected.put(position, true);
-                viewHolder.itemView.setBackgroundColor(context.getResources().getColor(android.R.color.holo_blue_light));
+                viewHolder.itemView.setBackgroundColor(context.getResources().getColor(R.color.delete_gray));
                 return false;
             }
         });
 
         if (itemsPendingRemoval.contains(rbook)) {
             // we need to show the "undo" state of the row
-            viewHolder.itemView.setBackgroundColor(Color.RED);
+            viewHolder.itemView.setBackgroundColor(context.getResources().getColor(R.color.delete2));
             viewHolder.titleBook.setVisibility(View.INVISIBLE);
             viewHolder.authorBook.setText("Delete Book ?");
             viewHolder.ratingCount.setVisibility(View.INVISIBLE);
@@ -170,13 +168,11 @@ public  class BookAdapter extends RecyclerView.Adapter<BookAdapter.ViewHolder>{
                 Picasso.with(context).load(tempValues.getGrImgUrl()).placeholder(R.drawable.default_book_image).into(viewHolder.imageBook);
             }
             viewHolder.ratingBook.setRating(tempValues.getRating());
-            DecimalFormat formatter = new DecimalFormat("#,###,###");
-            String rating_count = formatter.format(tempValues.getRatingsCount());
-            viewHolder.ratingCount.setText(rating_count + " votes");
+            viewHolder.ratingCount.setText("(" + tempValues.getRatingsCount() + ")");
             viewHolder.itemView.setBackgroundColor(Color.WHITE);
             //if the book is selected, change it's color to holo blue light
-            if(selected.get(position)) {
-                viewHolder.itemView.setBackgroundColor(context.getResources().getColor(android.R.color.holo_blue_light));
+            if (selected.get(position)) {
+                viewHolder.itemView.setBackgroundColor(context.getResources().getColor(R.color.delete_gray));
             }
             viewHolder.titleBook.setVisibility(View.VISIBLE);
             viewHolder.authorBook.setVisibility(View.VISIBLE);
@@ -231,12 +227,16 @@ public  class BookAdapter extends RecyclerView.Adapter<BookAdapter.ViewHolder>{
         removeBook.setUserId(userId);
 
         UsersAPI usersAPI = NetworkingFactory.getLocalInstance().getUsersAPI();
-        Call<Detail> call = usersAPI.removeBook(removeBook,"Token "+prefs.getString("token",null));
+        Call<Detail> call = usersAPI.removeBook(removeBook, "Token " + prefs.getString("token", null));
         call.enqueue(new Callback<Detail>() {
             @Override
             public void onResponse(Call<Detail> call, Response<Detail> response) {
                 if (response.body() != null) {
                     notifyDataSetChanged();
+                    //Make corresponding changes in MyProfile activity when a book is removed
+                    Log.i(TAG, "onResponse: 0");
+                    ((MyProfile)context).onBookRemoved();
+                    Log.i(TAG, "onResponse: 1");
                     Toast.makeText(context, "Successfully removed", Toast.LENGTH_SHORT).show();
                     Book rbook = bookList.get(position);
                     if (itemsPendingRemoval.contains(rbook)) {
@@ -254,7 +254,7 @@ public  class BookAdapter extends RecyclerView.Adapter<BookAdapter.ViewHolder>{
                 itemsPendingRemoval.remove(bookList.get(position));
                 //This line will remove the undo button and show the book row completely
                 notifyItemChanged(position);
-                Toast.makeText(context, "Check your network connectivity and try again", Toast.LENGTH_SHORT).show();
+                Toast.makeText(context, R.string.connection_failed, Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -316,7 +316,7 @@ public  class BookAdapter extends RecyclerView.Adapter<BookAdapter.ViewHolder>{
             boolean initiated;
 
             private void init() {
-                background = new ColorDrawable(Color.RED);
+                background = new ColorDrawable(context.getResources().getColor(R.color.delete2));
                 xMark = ContextCompat.getDrawable(context, R.drawable.ic_clear_24dp);
                 xMark.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_ATOP);
                 xMarkMargin = (int) context.getResources().getDimension(R.dimen.ic_clear_margin);
@@ -397,7 +397,7 @@ public  class BookAdapter extends RecyclerView.Adapter<BookAdapter.ViewHolder>{
             boolean initiated;
 
             private void init() {
-                background = new ColorDrawable(Color.RED);
+                background = new ColorDrawable(context.getResources().getColor(R.color.delete2));
                 initiated = true;
             }
 

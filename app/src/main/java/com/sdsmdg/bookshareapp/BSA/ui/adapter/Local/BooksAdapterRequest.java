@@ -3,7 +3,6 @@ package com.sdsmdg.bookshareapp.BSA.ui.adapter.Local;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
-import android.content.res.Resources;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
@@ -41,6 +40,8 @@ public class BooksAdapterRequest extends RecyclerView.Adapter<BooksAdapterReques
     String userId;
     private final OnItemClickListener listener;
 
+    List<Boolean> cancels;
+
     public interface OnItemClickListener {
         public void onItemClick(Book book);
     }
@@ -61,7 +62,7 @@ public class BooksAdapterRequest extends RecyclerView.Adapter<BooksAdapterReques
             imageBook = (ImageView) v.findViewById(R.id.row_books_imageView);
             ratingBook = (RatingBar) v.findViewById(R.id.row_books_rating);
             ratingCount = (TextView) v.findViewById(R.id.row_books_ratings_count);
-            request =(Button) v.findViewById(R.id.requestButton);
+            request = (Button) v.findViewById(R.id.requestButton);
             this.context = context;
         }
 
@@ -71,8 +72,8 @@ public class BooksAdapterRequest extends RecyclerView.Adapter<BooksAdapterReques
         this.bookList = bookList;
         this.context = context;
         this.listener = listener;
-        this.userId=userId;
-        prefs = context.getSharedPreferences("Token",Context.MODE_PRIVATE);
+        this.userId = userId;
+        prefs = context.getSharedPreferences("Token", Context.MODE_PRIVATE);
 
     }
 
@@ -86,61 +87,95 @@ public class BooksAdapterRequest extends RecyclerView.Adapter<BooksAdapterReques
 
     @Override
     public void onBindViewHolder(final ViewHolder holder, final int position) {
-        final String bookTitle,bookId;
+        final String bookTitle, bookId;
         tempValues = bookList.get(position);
         bookId = tempValues.getId();
         bookTitle = tempValues.getTitle();
         holder.titleBook.setText(tempValues.getTitle());
         holder.authorBook.setText(tempValues.getAuthor());
-        if(!tempValues.getGrImgUrl().isEmpty()) {
+
+        if (cancels.get(position)) {
+            holder.request.setText("Cancel");
+        } else {
+            holder.request.setText("Request");
+        }
+
+        if (!tempValues.getGrImgUrl().isEmpty()) {
             Picasso.with(this.context).load(tempValues.getGrImgUrl()).placeholder(R.drawable.default_book_image).into(holder.imageBook);
         }
+
         holder.ratingBook.setRating(tempValues.getRating());
         DecimalFormat formatter = new DecimalFormat("#,###,###");
         String rating_count = formatter.format(tempValues.getRatingsCount());
-        holder.ratingCount.setText(rating_count + " votes");
+        holder.ratingCount.setText("(" + rating_count + ")");
         holder.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 listener.onItemClick(bookList.get(position));
             }
         });
+
         holder.request.setOnClickListener(new View.OnClickListener() {
+
             @Override
             public void onClick(View v) {
                 AlertDialog.Builder builder = new AlertDialog.Builder(context);
-                builder.setTitle("Do you want to send a request?");
+                if (!cancels.get(position)) {
+                    builder.setTitle("Do you want to send a request?");
+                } else {
+                    builder.setTitle("Do you want to cancel the request?");
+                }
                 builder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        String process = "request";
-                        UsersAPI usersAPI = NetworkingFactory.getLocalInstance().getUsersAPI();
-                        Call<Notifications> sendNotif = usersAPI.sendNotif(Helper.getUserId(),Helper.getUserName(), bookId,bookTitle,process,userId,"request for","Token "+prefs
-                                .getString("token",null));
-                        sendNotif.enqueue(new Callback<Notifications>() {
-                            @Override
-                            public void onResponse(Call<Notifications> call, Response<Notifications> response) {
-                                Log.i("Email iD ", Helper.getUserEmail());
-                                if (response.body() != null) {
-                                    Log.i("SendNotif", "Success");
-                                    Log.d("SendNotif", Helper.getUserId()+" ID"+userId);
-                                    Toast.makeText(context, response.body().getDetail(), Toast.LENGTH_SHORT).show();
-                                    Log.i("response", response.body().getDetail());
-                                    holder.request.setEnabled(false);
-
-                                } else {
-                                    Log.i("SendNotif", "Response Null");
-                                    Toast.makeText(context, response.body().getDetail() , Toast.LENGTH_SHORT).show();
+                        if(holder.request.getText().equals("Request")) {
+                            String process = "request";
+                            UsersAPI usersAPI = NetworkingFactory.getLocalInstance().getUsersAPI();
+                            Call<Notifications> sendNotif = usersAPI.sendNotif(Helper.getUserId(), Helper.getUserName(), bookId, bookTitle, process, userId, "request for", "Token " + prefs
+                                    .getString("token", null));
+                            sendNotif.enqueue(new Callback<Notifications>() {
+                                @Override
+                                public void onResponse(Call<Notifications> call, Response<Notifications> response) {
+                                    if (response.body() != null) {
+                                        Toast.makeText(context, response.body().getDetail(), Toast.LENGTH_SHORT).show();
+                                        holder.request.setText("Cancel");
+                                    } else {
+                                        Toast.makeText(context, response.body().getDetail(), Toast.LENGTH_SHORT).show();
+                                    }
                                 }
-                            }
-                            @Override
-                            public void onFailure(Call<Notifications> call, Throwable t) {
-                                Log.i("SendNotif","Failed!!");
-                                Toast.makeText(context, "Check your internet connection and try again!", Toast.LENGTH_SHORT).show();
-                            }
-                        });
+
+                                @Override
+                                public void onFailure(Call<Notifications> call, Throwable t) {
+                                    Toast.makeText(context, R.string.connection_failed, Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        } else {
+
+                            String process = "cancel";
+                            UsersAPI usersAPI = NetworkingFactory.getLocalInstance().getUsersAPI();
+                            Call<Notifications> cancelNotif = usersAPI.cancelNotif(bookId, userId, process, "Token " + prefs
+                                    .getString("token", null));
+                            cancelNotif.enqueue(new Callback<Notifications>() {
+                                @Override
+                                public void onResponse(Call<Notifications> call, Response<Notifications> response) {
+                                    if (response.body() != null) {
+                                        Toast.makeText(context, response.body().getDetail(), Toast.LENGTH_SHORT).show();
+                                        holder.request.setText("Request");
+
+                                    } else {
+                                        Toast.makeText(context, response.body().getDetail(), Toast.LENGTH_SHORT).show();
+                                    }
+                                }
+
+                                @Override
+                                public void onFailure(Call<Notifications> call, Throwable t) {
+                                    Toast.makeText(context, R.string.connection_failed, Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        }
                     }
                 });
+
                 builder.setNegativeButton("No", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
@@ -148,11 +183,17 @@ public class BooksAdapterRequest extends RecyclerView.Adapter<BooksAdapterReques
                     }
                 });
 
+
                 builder.show();
 
             }
         });
 
+
+    }
+
+    public void setCancels(List<Boolean> cancels) {
+        this.cancels = cancels;
     }
 
     @Override

@@ -3,10 +3,11 @@ package com.sdsmdg.bookshareapp.BSA.ui;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Paint;
+import android.net.Uri;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.text.InputType;
-import android.util.Log;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.ArrayAdapter;
@@ -20,8 +21,8 @@ import android.widget.Toast;
 import com.sdsmdg.bookshareapp.BSA.R;
 import com.sdsmdg.bookshareapp.BSA.api.NetworkingFactory;
 import com.sdsmdg.bookshareapp.BSA.api.UsersAPI;
+import com.sdsmdg.bookshareapp.BSA.api.models.LocalUsers.UserInfo;
 import com.sdsmdg.bookshareapp.BSA.api.models.Login;
-import com.sdsmdg.bookshareapp.BSA.api.models.UserInfo;
 import com.sdsmdg.bookshareapp.BSA.utils.Helper;
 
 import butterknife.ButterKnife;
@@ -45,12 +46,12 @@ public class LoginActivity extends AppCompatActivity {
     Button _loginButton;
     @InjectView(R.id.link_signup)
     TextView _signupLink;
+    @InjectView(R.id.link_forgot_password)
+    TextView forgotPasswordLink;
     String token;
     Context context;
     boolean showPassword = false;
-
     CustomProgressDialog customProgressDialog;
-
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -60,17 +61,19 @@ public class LoginActivity extends AppCompatActivity {
         ButterKnife.inject(this);
 
         context = this;
+        // underline the forget password text view
+        forgotPasswordLink.setPaintFlags(forgotPasswordLink.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
 
-        InputMethodManager imm = (InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
         imm.hideSoftInputFromWindow(_emailText.getWindowToken(), 0);
 
         pref = getApplicationContext().getSharedPreferences("Token", MODE_PRIVATE);
         prevEmail = getApplicationContext().getSharedPreferences("Previous Email", MODE_PRIVATE);
         String emails[];
-        if(prevEmail.getString("email1", null) == null) {
+        if (prevEmail.getString("email1", null) == null) {
             emails = new String[1];
             emails[0] = prevEmail.getString("email2", null);
-        } else if(prevEmail.getString("email2", null) == null) {
+        } else if (prevEmail.getString("email2", null) == null) {
             emails = new String[1];
             emails[0] = prevEmail.getString("email1", null);
         } else {
@@ -83,21 +86,21 @@ public class LoginActivity extends AppCompatActivity {
         _emailText.setAdapter(adapter);
 
         token = pref.getString("token", "");
-        Log.i("Login token", token + " n");
-
         _showPassword.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(!showPassword){
-                _passwordText.setInputType(InputType.TYPE_TEXT_VARIATION_PASSWORD);
-                    showPassword=true;
-                    _showPassword.setImageResource(R.drawable.ic_visibility_off);
+                if (!showPassword) {
+                    _passwordText.setInputType(InputType.TYPE_TEXT_VARIATION_PASSWORD);
+                    showPassword = true;
+                    _passwordText.setSelection(_passwordText.getText().length());
+                    _showPassword.setImageResource(R.drawable.ic_visible_off);
                 } else {
                     _passwordText.setInputType(129); //input type = password
-                    showPassword=false;
-                    _showPassword.setImageResource(R.drawable.ic_visibility);
+                    showPassword = false;
+                    _passwordText.setSelection(_passwordText.getText().length());
+                    _showPassword.setImageResource(R.drawable.ic_visible_on);
                 }
-                }
+            }
 
         });
 
@@ -105,7 +108,7 @@ public class LoginActivity extends AppCompatActivity {
 
             @Override
             public void onClick(View v) {
-                InputMethodManager imm = (InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+                InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
                 imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
                 login();
             }
@@ -118,6 +121,14 @@ public class LoginActivity extends AppCompatActivity {
                 // Start the Signup activity
                 Intent intent = new Intent(getApplicationContext(), SignupActivity.class);
                 startActivityForResult(intent, REQUEST_SIGNUP);
+            }
+        });
+
+        forgotPasswordLink.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intent = new Intent(getApplicationContext(), ForgotPasswordActivity.class);
+                startActivity(intent);
             }
         });
     }
@@ -133,23 +144,20 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     public void login() {
-        Log.d(TAG, "Login");
-
         if (!validate()) {
             onLoginFailed("Fill complete details!");
             return;
         }
 
-        _loginButton.setEnabled(false);
+        //_loginButton.setEnabled(false);
 
         customProgressDialog = new CustomProgressDialog(LoginActivity.this);
         customProgressDialog.setCancelable(false);
         customProgressDialog.show();
 
-        String email = _emailText.getText().toString() + "@iitr.ac.in";
+        String email = _emailText.getText().toString();
         String password = _passwordText.getText().toString();
         Helper.setUserEmail(email);
-
 
         UsersAPI usersAPI = NetworkingFactory.getLocalInstance().getUsersAPI();
         Call<Login> call = usersAPI.getToken(email, password);
@@ -157,10 +165,10 @@ public class LoginActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<Login> call, Response<Login> response) {
                 if (response.body() != null) {
-                    if(response.body().getDetail() != null) {
+                    if (response.body().getDetail() != null) {
                         onLoginFailed(response.body().getDetail());
                     }
-                    if(response.body().getToken() != null) {
+                    if (response.body().getToken() != null) {
                         setNewEmail(_emailText.getText().toString());//This function sets the new entered email into the shared prefs for suggestions
                         onLoginSuccess();
                         saveinSP(response.body().getToken(), response.body().getUserInfo());
@@ -168,14 +176,13 @@ public class LoginActivity extends AppCompatActivity {
                 }
                 customProgressDialog.dismiss();
             }
-
             @Override
             public void onFailure(Call<Login> call, Throwable t) {
                 onLoginFailed("Check your network connectivity and try again!");
+                t.printStackTrace();
                 customProgressDialog.dismiss();
             }
         });
-
     }
 
     public void setNewEmail(String email) {
@@ -183,7 +190,7 @@ public class LoginActivity extends AppCompatActivity {
         String email2 = prevEmail.getString("email2", null);
 
         String email1 = email2;
-        if(!email.equals(email1)) {
+        if (!email.equals(email1)) {
             email2 = email;
         } else {
             email2 = null;
@@ -202,7 +209,6 @@ public class LoginActivity extends AppCompatActivity {
 
                 // By default we just finish the Activity and log them in automatically
                 Toast.makeText(this, "Signup Successful!", Toast.LENGTH_SHORT).show();
-
             }
         }
     }
@@ -216,6 +222,7 @@ public class LoginActivity extends AppCompatActivity {
     public void onLoginSuccess() {
         _loginButton.setEnabled(true);
         Intent i = new Intent(this, MainActivity.class);
+        i.putExtra("data_login", "update");
         startActivity(i);
         finish();
     }
@@ -264,8 +271,6 @@ public class LoginActivity extends AppCompatActivity {
         editor.putString("contact_no", userInfo.getContactNo());
         editor.putString("enr_no", userInfo.getEnrNo());
         editor.putString("college", userInfo.getCollege());
-
-        Log.i("room_no", userInfo.getRoomNo());
         editor.apply();
 
     }

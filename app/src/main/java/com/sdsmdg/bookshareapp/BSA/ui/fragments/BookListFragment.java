@@ -6,12 +6,10 @@ import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.sdsmdg.bookshareapp.BSA.R;
 import com.sdsmdg.bookshareapp.BSA.api.BooksAPI;
@@ -78,9 +76,9 @@ public class BookListFragment extends Fragment {
                     bookList.clear();
                     bookList.addAll(sr.getBooks());
                     adapter.notifyDataSetChanged();
-                    if(bookList.size()==0){
+                    if (bookList.size() == 0) {
                         no_books.setVisibility(View.VISIBLE);
-                    }else {
+                    } else {
                         no_books.setVisibility(View.GONE);
 
                     }
@@ -90,7 +88,6 @@ public class BookListFragment extends Fragment {
 
             @Override
             public void onFailure(Call<GoodreadsResponse> call, Throwable t) {
-                Log.d("searchresp", "searchOnFail " + t.toString());
                 resp = "failed";
             }
         });

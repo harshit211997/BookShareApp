@@ -3,10 +3,11 @@ package com.sdsmdg.bookshareapp.BSA.ui.adapter.GR;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.support.v7.app.AlertDialog;
+import android.support.v7.view.ContextThemeWrapper;
 import android.support.v7.widget.RecyclerView;
 import android.text.Html;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -34,11 +35,11 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class BooksAdapterGR extends RecyclerView.Adapter<BooksAdapterGR.ViewHolder>{
+public class BooksAdapterGR extends RecyclerView.Adapter<BooksAdapterGR.ViewHolder> {
 
     private Context context;
     private List<Book> bookList;
-    Book tempValues=null;
+    Book tempValues = null;
     BookDescription tempDescp;
     String description;
     String token;
@@ -51,7 +52,7 @@ public class BooksAdapterGR extends RecyclerView.Adapter<BooksAdapterGR.ViewHold
     }
 
 
-    public static class ViewHolder extends RecyclerView.ViewHolder{
+    public static class ViewHolder extends RecyclerView.ViewHolder {
         public TextView titleBook;
         public TextView authorBook;
         public ImageView imageBook;
@@ -61,24 +62,23 @@ public class BooksAdapterGR extends RecyclerView.Adapter<BooksAdapterGR.ViewHold
 
         Context context;
 
-        public ViewHolder(View v, Context context){
+        public ViewHolder(View v, Context context) {
             super(v);
-            titleBook = (TextView)v.findViewById(R.id.row_books_title);
-            authorBook = (TextView)v.findViewById(R.id.row_books_author);
+            titleBook = (TextView) v.findViewById(R.id.row_books_title);
+            authorBook = (TextView) v.findViewById(R.id.row_books_author);
             imageBook = (ImageView) v.findViewById(R.id.row_books_imageView);
             ratingBook = (RatingBar) v.findViewById(R.id.row_books_rating);
             ratingCount = (TextView) v.findViewById(R.id.row_books_ratings_count);
-            add =(Button)v.findViewById(R.id.add);
+            add = (Button) v.findViewById(R.id.add);
 
             this.context = context;
         }
 
     }
 
-    public BooksAdapterGR(Context context, List<com.sdsmdg.bookshareapp.BSA.api.models.Book> bookList, OnItemClickListener listener){
-        this.bookList =bookList;
-        this.context=context;
-        Log.d("BookAdapter","Constructor");
+    public BooksAdapterGR(Context context, List<com.sdsmdg.bookshareapp.BSA.api.models.Book> bookList, OnItemClickListener listener) {
+        this.bookList = bookList;
+        this.context = context;
         this.listener = listener;
         prefs = context.getSharedPreferences("Token", Context.MODE_PRIVATE);
 
@@ -98,12 +98,11 @@ public class BooksAdapterGR extends RecyclerView.Adapter<BooksAdapterGR.ViewHold
 
     @Override
     public void onBindViewHolder(final ViewHolder holder, final int position) {
-        final String email,title,author,gr_id,gr_img_url;
+        final String email, title, author, gr_id, gr_img_url;
         final Integer search_id;
         final Long ratingsCount;
         final Float rating;
         token = prefs.getString("token", null);
-        Log.i("token_value",token);
 
         holder.add.setEnabled(true);
         tempValues = bookList.get(position);
@@ -113,17 +112,18 @@ public class BooksAdapterGR extends RecyclerView.Adapter<BooksAdapterGR.ViewHold
         holder.ratingBook.setRating(tempValues.getRating());
 
         DecimalFormat formatter = new DecimalFormat("#,###,###");
+
         String rating_count = formatter.format(tempValues.getRatingCount());
 
-        holder.ratingCount.setText(rating_count + " votes");
+        holder.ratingCount.setText("(" + rating_count + ")");
         title = tempValues.getBookDetails().getTitle();
-        email= Helper.getUserEmail();
-        author=tempValues.getBookDetails().getAuthor().getAuthor_name();
-        gr_img_url=tempValues.getBookDetails().getImage_url();
-        rating=tempValues.getRating();
+        email = Helper.getUserEmail();
+        author = tempValues.getBookDetails().getAuthor().getAuthor_name();
+        gr_img_url = tempValues.getBookDetails().getImage_url();
+        rating = tempValues.getRating();
         ratingsCount = tempValues.getRatingCount();
-        gr_id= tempValues.getId().toString();
-        search_id=tempValues.getBookDetails().getId();
+        gr_id = tempValues.getId().toString();
+        search_id = tempValues.getBookDetails().getId();
         holder.itemView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -140,53 +140,54 @@ public class BooksAdapterGR extends RecyclerView.Adapter<BooksAdapterGR.ViewHold
                 call.enqueue(new Callback<GoodreadsResponse2>() {
                     @Override
                     public void onResponse(Call<GoodreadsResponse2> call, Response<GoodreadsResponse2> response) {
-                        if(response!=null){
-                            tempDescp= response.body().getbDesc();
-                            description= tempDescp.getBDescription();
-                            description= Html.fromHtml(description).toString();
-                            if(description.length()>1000){
-                                description=description.substring(0,990)+"...";
-                            }
-                        }
-                        else {
-                            description="No Description Available";
-                        }
+                        if (response != null) {
+                            tempDescp = response.body().getbDesc();
+                            description = tempDescp.getBDescription();
 
+                            description = Html.fromHtml(description).toString();
+                            if (description.length() > 1000) {
+                                description = description.substring(0, 990) + "...";
+                            }
+                        } else {
+                            description = "No Description Available";
+                        }
                     }
 
                     @Override
                     public void onFailure(Call<GoodreadsResponse2> call, Throwable t) {
-                        description="No Description Available";
+                        description = "No Description Available";
                     }
                 });
 
-
-                AlertDialog.Builder builder = new AlertDialog.Builder(context);
+                AlertDialog.Builder builder = new AlertDialog.Builder(new ContextThemeWrapper(context, R.style.AppTheme_Dialog));
+                builder.setInverseBackgroundForced(true);
                 builder.setTitle("Do you want to add this Book?");
                 builder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         UsersAPI usersAPI = NetworkingFactory.getLocalInstance().getUsersAPI();
-                        Call<com.sdsmdg.bookshareapp.BSA.api.models.LocalBooks.Book> addBook = usersAPI.addBook(email,title, author,gr_id,ratingsCount,rating,gr_img_url,description,"Token "+token);
+                        Call<com.sdsmdg.bookshareapp.BSA.api.models.LocalBooks.Book> addBook = usersAPI.addBook(email, title, author, gr_id, ratingsCount, rating, gr_img_url, description, "Token " + token);
                         addBook.enqueue(new Callback<com.sdsmdg.bookshareapp.BSA.api.models.LocalBooks.Book>() {
 
                             @Override
                             public void onResponse(Call<com.sdsmdg.bookshareapp.BSA.api.models.LocalBooks.Book> call, Response<com.sdsmdg.bookshareapp.BSA.api.models.LocalBooks.Book> response) {
-                                Log.i("Email iD ", Helper.getUserEmail());
-                                if (response.body() != null) {
-                                    Log.i("AddBook", "Success");
-                                    Toast.makeText(context, response.body().getDetail(), Toast.LENGTH_SHORT).show();
-                                    Log.i("response", response.body().getDetail());
-                                    holder.add.setEnabled(false);
+                                try {
 
-                                } else {
-                                    Log.i("AddBook", "Response Null");
-                                    Toast.makeText(context, response.body().getDetail() , Toast.LENGTH_SHORT).show();
+                                    if (response.body() != null) {
+                                        Toast.makeText(context, response.body().getDetail(), Toast.LENGTH_SHORT).show();
+                                        holder.add.setEnabled(false);
+                                        holder.add.setTextColor(Color.argb(255, 179, 179, 179));
+                                    } else {
+                                        Toast.makeText(context, response.body().getDetail(), Toast.LENGTH_SHORT).show();
+                                    }
+                                } catch (NullPointerException n) {
+                                    Toast.makeText(context, "Sorry, this book can't be added", Toast.LENGTH_SHORT).show();
                                 }
                             }
+
                             @Override
                             public void onFailure(Call<com.sdsmdg.bookshareapp.BSA.api.models.LocalBooks.Book> call, Throwable t) {
-                                Log.i("AddBook","Failed!!");
+                                Toast.makeText(context, R.string.connection_failed, Toast.LENGTH_SHORT).show();
                             }
                         });
                     }
@@ -206,7 +207,7 @@ public class BooksAdapterGR extends RecyclerView.Adapter<BooksAdapterGR.ViewHold
 
     @Override
     public int getItemCount() {
-        if(bookList != null)
+        if (bookList != null)
             return bookList.size();
 
         return 0;

@@ -4,7 +4,6 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -15,7 +14,7 @@ import android.widget.Toast;
 import com.sdsmdg.bookshareapp.BSA.R;
 import com.sdsmdg.bookshareapp.BSA.api.NetworkingFactory;
 import com.sdsmdg.bookshareapp.BSA.api.UsersAPI;
-import com.sdsmdg.bookshareapp.BSA.api.models.UserInfo;
+import com.sdsmdg.bookshareapp.BSA.api.models.LocalUsers.UserInfo;
 import com.sdsmdg.bookshareapp.BSA.utils.Helper;
 
 import retrofit2.Call;
@@ -26,8 +25,8 @@ public class EditProfileActivity extends AppCompatActivity {
 
     EditText firstName, lastName, contactNo, roomNo;
     Spinner hostelSpinner;
-    String id ;
-    SharedPreferences preferences;
+    String id;
+    SharedPreferences preferences, hostelPref;
     String hostel;
     UserInfo userInfo;
 
@@ -43,14 +42,18 @@ public class EditProfileActivity extends AppCompatActivity {
         hostelSpinner = (Spinner) findViewById(R.id.hostel_spinner);
 
         preferences = getSharedPreferences("Token", MODE_PRIVATE);
-        id = preferences.getString("id",null);
+
+        hostelPref = getSharedPreferences("hostel_res_id", MODE_PRIVATE);
+        int hostelResId = hostelPref.getInt("hostel_id", R.array.iitr_hostel_list);
+
+        id = preferences.getString("id", null);
         firstName.setText(preferences.getString("first_name", null));
         lastName.setText(preferences.getString("last_name", null));
         contactNo.setText(preferences.getString("contact_no", null));
         roomNo.setText(preferences.getString("room_no", null));
         hostel = preferences.getString("hostel", null);
 
-        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this, R.array.hostel_list, android.R.layout.simple_spinner_item);
+        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this, hostelResId, android.R.layout.simple_spinner_item);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         hostelSpinner.setAdapter(adapter);
         if (!hostel.equals(null)) {
@@ -102,14 +105,14 @@ public class EditProfileActivity extends AppCompatActivity {
                     Helper.setUserName(firstName.getText().toString() + " " + lastName.getText().toString());
 
                 } else {
-                    Log.i("EditProfile", "response.body() is null)");
+                    Toast.makeText(EditProfileActivity.this, R.string.connection_failed, Toast.LENGTH_SHORT).show();
                 }
             }
 
             @Override
             public void onFailure(Call<UserInfo> call, Throwable t) {
                 t.printStackTrace();
-                Toast.makeText(getApplicationContext(), "Check your network connectivity and try again", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getApplicationContext(), R.string.connection_failed, Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -118,7 +121,7 @@ public class EditProfileActivity extends AppCompatActivity {
     @Override
     public void onBackPressed() {
         super.onBackPressed();
-        Intent i= new Intent(this,MyProfile.class);
+        Intent i = new Intent(this, MyProfile.class);
         i.putExtra("id", preferences.getString("id", preferences.getString("id", "")));
         startActivity(i);
 

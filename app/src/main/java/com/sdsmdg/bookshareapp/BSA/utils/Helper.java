@@ -4,7 +4,25 @@ public class Helper {
 
     public static String accessToken = "";
     public static String accessSecret = "";
-    public static String userGRid =null;
+    public static String userGRid = null;
+
+    public static String token, id;
+
+    public static String getToken() {
+        return token;
+    }
+
+    public static void setToken(String token) {
+        Helper.token = token;
+    }
+
+    public static String getId() {
+        return id;
+    }
+
+    public static void setId(String id) {
+        Helper.id = id;
+    }
 
     public static String getUserGRid() {
         return userGRid;
